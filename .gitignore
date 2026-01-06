@@ -1,0 +1,8 @@
+**/*.log
+logs/
+build/
+.idea/
+.gradle/
+**/.DS_Store
+config/
+**/dump.rdb

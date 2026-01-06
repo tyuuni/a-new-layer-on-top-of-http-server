@@ -1,0 +1,48 @@
+package com.example.apiserver;
+
+public enum ErrorCodes {
+    AUTH_HEADER_MISSING(40100001),
+
+    AUTH_VR_NO_SUCH_TEMPLE(40100002),
+    TOKEN_EXPIRED(40100003),
+
+    UNAUTHORIZED_USER_CREATION(40300001),
+
+    INVALID_COURSE_ID(40400001),
+    INVALID_USER_ID(40400002),
+
+
+    // 406000XX is reserved for general errors
+    DIRTY_URL(40600001),
+    SHOULD_ELIMINATE_CONTENT_HEADER_AND_BODY(40600002),
+    CONTENT_TYPE_NOT_MATCH(40600003),
+    DIRTY_BODY(40600004),
+    JSON_BODY_TOO_LARGE(40600005),
+    JSON_VALUE_TYPE_MISMATCH(40600006),
+
+    LOGIN_FAILURE_INCORRECT_USER(40610001),
+
+    CONFLICTING_NFC_ID(40600007),
+
+    // 406007xx 上传相关
+    IMAGE_PARAM_ERROR(40600701),
+    IMAGE_TOO_BIG(40600702),
+
+    METHOD_NOT_IMPLEMENTED(41500000),
+
+    MICRO_SERVICE_COMMUNICATION_ERROR(50000001),
+
+    FATAL(99999999);
+
+
+
+    private final int code;
+
+    ErrorCodes(final int code) {
+        this.code = code;
+    }
+
+    public int value() {
+        return this.code;
+    }
+}

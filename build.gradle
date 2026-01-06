@@ -1,0 +1,140 @@
+
+plugins {
+    id 'java'
+    id 'application'
+    id 'idea'
+    id 'jacoco'
+    id 'com.google.protobuf' version '0.8.8'
+    id 'checkstyle'
+//  TODO: fix following 2 old plugin dependencies
+//    id 'org.ajoberstar.grgit' version '4.1.0'
+//    id "org.asciidoctor.convert" version "1.5.9.2"
+}
+
+checkstyle {
+    toolVersion = '8.22'
+}
+
+repositories {
+    jcenter()
+    mavenCentral()
+
+}
+
+application {
+    mainClassName = 'com.example.apiserver.App'
+}
+
+def urlFile = { url, name ->
+    File file = new File("$buildDir/download/${name}.jar")
+    file.parentFile.mkdirs()
+    if (!file.exists()) {
+        new URL(url).withInputStream { downloadStream ->
+            file.withOutputStream { fileOut ->
+                fileOut << downloadStream
+            }
+        }
+    }
+    files(file.absolutePath)
+}
+
+applicationDefaultJvmArgs = [
+//                             '-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5000',
+]
+
+def grpcVersion = '1.29.0'
+def protobufVersion = '3.13.0'
+def protocVersion = protobufVersion
+
+dependencies {
+    // 仅用来做DI和auto shutdown
+    implementation 'org.springframework:spring-core:5.3.12'
+    implementation 'org.springframework:spring-beans:5.3.12'
+    implementation 'org.springframework:spring-context:5.3.12'
+    implementation "io.projectreactor:reactor-core:3.3.10.RELEASE"
+    implementation 'org.springframework.security:spring-security-crypto:5.3.4.RELEASE'
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.13.0'
+    implementation 'io.opentracing.brave:brave-opentracing:1.0.0'
+    implementation 'io.opentracing.contrib:opentracing-redis-lettuce:0.1.12'
+    implementation 'io.opentracing.contrib:opentracing-concurrent:0.4.0'
+    implementation 'io.opentracing.contrib:opentracing-reactor:0.2.0'
+    implementation "io.lettuce:lettuce-core:6.0.0.RC2"
+    implementation "io.grpc:grpc-protobuf:${grpcVersion}"
+    implementation "io.grpc:grpc-stub:${grpcVersion}"
+    implementation "com.mchange:c3p0:0.9.5.5"
+    implementation "com.mchange:mchange-commons-java:0.2.20"
+    implementation 'mysql:mysql-connector-java:5.1.49'
+    implementation "com.google.protobuf:protobuf-java-util:${protobufVersion}"
+    implementation "io.javalin:javalin:4.1.1"
+    implementation "joda-time:joda-time:2.10.8"
+    implementation "org.slf4j:slf4j-api:1.7.7"
+    implementation "ch.qos.logback:logback-core:1.1.7"
+    implementation "ch.qos.logback:logback-classic:1.1.7"
+    compileOnly "org.apache.tomcat:annotations-api:6.0.53"
+    implementation "io.grpc:grpc-netty-shaded:${grpcVersion}"
+    runtimeOnly 'io.netty:netty-tcnative-boringssl-static:2.0.20.Final'
+    implementation 'io.netty:netty-tcnative-boringssl-static:2.0.20.Final'
+    annotationProcessor "org.immutables:value:2.8.8"
+    compileOnly 'org.immutables:value:2.8.8'
+    compile 'org.immutables:value-annotations:2.8.8'
+    implementation "com.aliyun.oss:aliyun-sdk-oss:3.11.1"
+    testImplementation "io.grpc:grpc-testing:${grpcVersion}"
+    testImplementation "io.grpc:grpc-testing:${grpcVersion}"
+
+}
+
+protobuf {
+    protoc { artifact = "com.google.protobuf:protoc:${protocVersion}" }
+    plugins {
+        grpc { artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}" }
+    }
+    generateProtoTasks {
+        all()*.plugins { grpc {} }
+    }
+}
+
+// Inform IDEs like IntelliJ IDEA, Eclipse or NetBeans about the generated code.
+sourceSets {
+    main {
+        java {
+            srcDirs 'build/generated/source/proto/main/grpc'
+            srcDirs 'build/generated/source/proto/main/java'
+            srcDirs 'build/generated/sources/annotationProcessor/java/main'
+            srcDirs 'build/generated/sources/headers/java/main'
+        }
+    }
+}
+
+test {
+    useJUnitPlatform()
+}
+
+ext {
+    snippetsDir = file('build/generated-snippets')
+}
+
+test {
+    useJUnitPlatform()
+    outputs.dir snippetsDir
+}
+
+//  TODO: uncomment this line after asciidoctor dependency is fixed
+//asciidoctor {
+//    inputs.dir snippetsDir
+//    dependsOn test
+//}
+
+task buildJavaCommonConfig {
+    doFirst {
+        delete "config"
+        delete "$buildDir/download"
+        File dir = new File("$buildDir/download")
+        dir.parentFile.mkdirs()
+        org.ajoberstar.grgit.Grgit.clone(dir: dir, uri: 'git@git.qingniu.co:infoloop/java-common.git')
+        file("$buildDir/download/config").renameTo(file("$buildDir/../config"))
+    }
+}
+
+
+
+
