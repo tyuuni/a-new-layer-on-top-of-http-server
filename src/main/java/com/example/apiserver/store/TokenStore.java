@@ -1,13 +1,14 @@
 package com.example.apiserver.store;
 
 import com.example.apiserver.core.BusinessUnit;
+import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.sync.RedisCommands;
 
 import java.util.UUID;
 
 public class TokenStore implements BusinessUnit {
     private final String prefix;
-    private final RedisCommands<String, String> commands;
+    private final StatefulRedisConnection<String, String> connection;
     private final int ttl;
 
     static String key(final String prefix,
@@ -16,25 +17,25 @@ public class TokenStore implements BusinessUnit {
     }
 
     public TokenStore(final String prefix,
-                      final RedisCommands<String, String> commands,
+                      final StatefulRedisConnection<String, String> connection,
                       final int ttl) {
         this.prefix = prefix;
-        this.commands = commands;
+        this.connection = connection;
         this.ttl = ttl;
     }
 
     public String retrieveToken(final String userId) {
-        return commands.get(key(prefix, userId));
+        return connection.sync().get(key(prefix, userId));
     }
 
     public String putToken(final String id) {
         final String token = UUID.randomUUID().toString().replace("-", "");
-        commands.setex(key(prefix, id), ttl, token);
+        connection.sync().setex(key(prefix, id), ttl, token);
         return token;
     }
 
     public void deleteToken(final String id) {
-        this.commands.del(key(prefix, id));
+        connection.sync().del(key(prefix, id));
     }
 
     public int getDefaultTTL() {

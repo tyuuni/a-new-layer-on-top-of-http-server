@@ -66,36 +66,15 @@ public class AppConfig implements ApplicationContextAware {
     }
 
     @Bean()
-    @Lazy // 主要是lettuce初始化太慢，redisClient.connect()要执行五秒，尽量让spring初始化早点结束，并行先注册业务单元
+    @Lazy // lettuce initialization is sometimes very slow
     public TokenStore tokenStore(@Autowired final StatefulRedisConnection<String, String> connection,
                                  @Value("${server.session.ttl}") final int ttl) {
-        final var commands = connection.sync();
+        LOGGER.info("receiving redis connection");
         return new TokenStore(
-                "user:lt:",
-                commands,
+                "ult:", // user login token
+                connection,
                 ttl
         );
-    }
-
-    @Bean
-    @Qualifier("async-tasks-redis-connection")
-    public StatefulRedisConnection asyncTasksConnection(@Autowired @Qualifier("async-tasks-redis-client") final RedisClient client) {
-        return client.connect();
-    }
-
-    @Bean
-    @Qualifier("async-tasks-redis-client")
-    public RedisClient asyncTasksRedisClient(@Value("${redis.url}") final String url,
-                                             @Value("${redis.auth}") final String password,
-                                             @Value("${redis.db.token}") final int tokenDB,
-                                             @Autowired final ClientResources clientResources) {
-        final var uriBuilder = RedisURI.builder()
-                .withHost(url)
-                .withDatabase(tokenDB);
-        if (password.length() != 0) {
-            uriBuilder.withPassword(password.toCharArray());
-        }
-        return RedisClient.create(clientResources, uriBuilder.build());
     }
 
     @Bean

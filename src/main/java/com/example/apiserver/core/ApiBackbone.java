@@ -97,32 +97,56 @@ class ApiBackbone {
                 type,
                 path,
                 wrap(context -> {
-                    final var params = new Object[paramsSize];
-                    // TODO:
-                    for (int i = 0; i < copiedInjectors.size(); i++) {
-                        final var isInjected = copiedInjectors.get(i).inject(context);
-                        if (!isInjected) {
-                            return;
+                    int lastCalledInjector = -1;
+                    try {
+                        final var params = new Object[paramsSize];
+                        boolean shouldSkipHandler = false;
+                        for (int i = 0; i < copiedInjectors.size(); i++) {
+                            lastCalledInjector = i;
+                            final var isInjected = copiedInjectors.get(i).inject(context);
+                            if (!isInjected) {
+                                shouldSkipHandler = true;
+                                break;
+                            }
+                            params[i] = copiedInjectors.get(i).extract(context);
                         }
-                        params[i] = copiedInjectors.get(i).extract(context);
+                        if (!shouldSkipHandler) {
+                            final var request = validator.validate(context);
+                            for (int i = 0; i < copiedUnits.size(); i++) {
+                                params[i + copiedInjectors.size()] = copiedUnits.get(i);
+                            }
+                            params[paramsSize - 1] = request;
+                            final var span = ((ScopedSpan) context.attribute(INJECTED_SPAN));
+                            final var result = handler.apply(params)
+                                    .subscriberContext(
+                                            Context.of(
+                                                    LOGGING_TRACING_ID, span.context().traceIdString(),
+                                                    LOGGING_UNIQUE_ID, span.context().spanIdString(),
+                                                    LOGGING_PARENT_TRACING_ID, ""))
+                                    .block();
+                            responseMapper.mapResponse(context, result);
+                        }
+                    } catch (final ClientSideException e) {
+                        context
+                                .status(e.getStatus())
+                                .contentType(ContentType.APPLICATION_JSON)
+                                .result(e.getJsonResponse());
+                    } catch (final Exception e) {
+                        LOGGER.error("fatal error", e);
+                        context
+                                .status(HttpCode.INTERNAL_SERVER_ERROR)
+                                .contentType(ContentType.APPLICATION_JSON)
+                                .result(UNEXPECTED_EXCEPTION);
                     }
-                    final var request = validator.validate(context);
-                    if (request == null) {
-                        return;
+                    try {
+                        for (; lastCalledInjector >= 0; lastCalledInjector--) {
+                            copiedInjectors.get(lastCalledInjector).postHandle(context);
+                        }
+                    } catch (final Exception e) {
+                        LOGGER.error(
+                                String.format("%s injector postHandle fatal error", copiedInjectors.get(lastCalledInjector).getResourceClass()),
+                                e);
                     }
-                    for (int i = 0; i < copiedUnits.size(); i++) {
-                        params[i + copiedInjectors.size()] = copiedUnits.get(i);
-                    }
-                    params[paramsSize - 1] = request;
-                    final var span = ((ScopedSpan) context.attribute(INJECTED_SPAN));
-                    final var result = handler.apply(params)
-                            .subscriberContext(
-                                    Context.of(
-                                            LOGGING_TRACING_ID, span.context().traceIdString(),
-                                            LOGGING_UNIQUE_ID, span.context().spanIdString(),
-                                            LOGGING_PARENT_TRACING_ID, ""))
-                            .block();
-                    responseMapper.mapResponse(context, result);
                 }));
         final var apiDefinition = ImmutableApiDefinition.<R, T>builder()
                 .type(type)
@@ -139,13 +163,18 @@ class ApiBackbone {
 
     private Handler wrap(final Handler handler) {
         return ctx -> {
+            int lastCalledInjector = -1;
             try {
-                for (var injector : globalInjectors) {
-                    injector.inject(ctx);
+                boolean shouldSkipHandler = false;
+                for (int i = 0; i < globalInjectors.size(); i++) {
+                    lastCalledInjector = i;
+                    if (!globalInjectors.get(i).inject(ctx)) {
+                        shouldSkipHandler = true;
+                        break;
+                    }
                 }
-                handler.handle(ctx);
-                for (var injector : globalInjectors) {
-                    injector.postHandle(ctx);
+                if (!shouldSkipHandler) {
+                    handler.handle(ctx);
                 }
             } catch (final ClientSideException e) {
                 ctx
@@ -158,6 +187,15 @@ class ApiBackbone {
                         .status(HttpCode.INTERNAL_SERVER_ERROR)
                         .contentType(ContentType.APPLICATION_JSON)
                         .result(UNEXPECTED_EXCEPTION);
+            }
+            try {
+                for (; lastCalledInjector >= 0; lastCalledInjector--) {
+                    globalInjectors.get(lastCalledInjector).postHandle(ctx);
+                }
+            } catch (final Exception e) {
+                LOGGER.error(
+                        String.format("%s injector postHandle fatal error", globalInjectors.get(lastCalledInjector).getResourceClass()),
+                        e);
             }
         };
     }

@@ -26,7 +26,9 @@ public interface ResourceInjector<T extends InjectedResource> {
      */
     boolean inject(Context context);
 
+
     /**
+     * postHandle will be called anyway (if inject is called), even if inject returns false or throws an exception, or request handler throws an exception.
      * most resource injectors do nothing after business logic.
      */
     default void postHandle(Context context) {}
