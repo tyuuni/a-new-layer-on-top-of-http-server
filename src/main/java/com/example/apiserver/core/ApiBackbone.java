@@ -97,6 +97,7 @@ class ApiBackbone {
                 type,
                 path,
                 wrap(context -> {
+                    // TODO: remove duplicated codes
                     int lastCalledInjector = -1;
                     try {
                         final var params = new Object[paramsSize];

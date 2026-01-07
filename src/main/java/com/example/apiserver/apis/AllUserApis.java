@@ -5,8 +5,10 @@ import com.example.apiserver.apis.model.JointEntityResponse;
 import com.example.apiserver.core.ApiBuilder;
 import com.example.apiserver.core.ApiContext;
 import com.example.apiserver.ErrorCodes;
+import com.example.apiserver.core.exception.ConflictingRequest;
 import com.example.apiserver.core.exception.RequestValidationFailure;
 import com.example.apiserver.core.exception.UnauthorizedRequest;
+import com.example.apiserver.injector.ApiBasedSemaphore;
 import com.example.apiserver.injector.Authenticator;
 import com.example.apiserver.injector.SingleUserInjector;
 import com.example.apiserver.core.reqres.ResponseMapperFactory;
@@ -223,12 +225,21 @@ public class AllUserApis {
         abstract String getName();
     }
 
+    private static final String USER_UPDATE_FAILURE_CONCURRENT_REQUESTS = JSONUtil.writeAsJson(
+            CodeMessageErrorResponse.of(
+                    ErrorCodes.USER_UPDATE_CONCURRENT_REQUESTS.value(),
+                    "conflicting nfc card id"));
+
     static void updateSingleUser(final ApiBuilder apiBuilder) {
         apiBuilder.patch("/user/{userId}", "update single user.")
                 .requiresResourceInjection(Authenticator.LoggedInUser.class)
+                .requiresResourceInjection(ApiBasedSemaphore.InjectedApiSemaphore.class)
                 .requiresResourceInjection(SingleUserInjector.InjectedUser.class, "{userId}")
                 .requiresBusinessUnits(SingleUserUpdater.class)
-                .handle(RequestValidatorFactory.buildCleanJsonValidator(SingleUserUpdateRequest.class), (loggedInUser, injectedUser, singleUserUpdater, request) -> {
+                .handle(RequestValidatorFactory.buildCleanJsonValidator(SingleUserUpdateRequest.class), (loggedInUser, injectedApiSemaphore, injectedUser, singleUserUpdater, request) -> {
+                    if (injectedApiSemaphore.getAcquiredValue() > 1) {
+                        return Mono.error(new ConflictingRequest("concurrent request to update user", USER_UPDATE_FAILURE_CONCURRENT_REQUESTS));
+                    }
                     return singleUserUpdater.updateUser(injectedUser.getId(), request.getNfcCardId(), request.getName(), loggedInUser.getId());
                 }, ResponseMapperFactory.noContentMapper204());
     }

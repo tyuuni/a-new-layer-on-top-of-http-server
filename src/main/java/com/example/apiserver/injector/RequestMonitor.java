@@ -36,7 +36,7 @@ public class RequestMonitor implements ResourceInjector<RequestMonitor.MonitorSt
     @Override
     public void postHandle(final Context context) {
         final var endTime = Instant.now();
-        LOGGER.info("finished processing {} {}:{} in {}ms", context.status(), context.method(), context.path(), endTime.toEpochMilli() - (long) context.attribute(INJECTED_REQUEST_START_TIME));
+        LOGGER.info("finished processing. {} {}:{} in {}ms", context.status(), context.method(), context.path(), endTime.toEpochMilli() - (long) context.attribute(INJECTED_REQUEST_START_TIME));
     }
 
     @Override
@@ -58,6 +58,8 @@ public class RequestMonitor implements ResourceInjector<RequestMonitor.MonitorSt
     public Class<RequestMonitor.MonitorStatus> getResourceClass() {
         return RequestMonitor.MonitorStatus.class;
     }
+
     public static class MonitorStatus implements InjectedResource {
+        MonitorStatus() {}
     }
 }

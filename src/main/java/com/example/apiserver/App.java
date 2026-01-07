@@ -5,16 +5,15 @@ import com.example.apiserver.apis.AllCourseApis;
 import com.example.apiserver.apis.AllUserApis;
 import com.example.apiserver.apis.SystemApis;
 import com.example.apiserver.core.ApiContext;
-import com.example.apiserver.injector.Authenticator;
-import com.example.apiserver.injector.RequestMonitor;
-import com.example.apiserver.injector.SingleCourseInjector;
-import com.example.apiserver.injector.SingleUserInjector;
+import com.example.apiserver.injector.*;
 import com.example.apiserver.service.TemporaryMonolithicService;
 import com.example.apiserver.store.TokenStore;
 import com.example.apiserver.unit.AllUnitsRegister;
 import com.example.apiserver.unit.course.SingleCourseByIdGetter;
 import com.example.apiserver.unit.user.SingleUserByIdGetter;
 import io.javalin.Javalin;
+import io.lettuce.core.api.StatefulConnection;
+import io.lettuce.core.api.StatefulRedisConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationContext;
@@ -36,16 +35,16 @@ public class App {
         LOGGER.info("start initialization");
         disableDefaultLogger();
 
-        final ApplicationContext context = new AnnotationConfigApplicationContext(AppConfig.class);
+        final ApplicationContext applicationContext = new AnnotationConfigApplicationContext(AppConfig.class);
         LOGGER.info("spring initialization finished");
-        final var apiContext = context.getBean(ApiContext.class);
+        final var apiContext = applicationContext.getBean(ApiContext.class);
         apiContext.initializeFramework();
         apiContext.addGlobalInjector(new RequestMonitor());
 
-        final var tokenStore = context.getBean(TokenStore.class);
+        final var tokenStore = applicationContext.getBean(TokenStore.class);
         apiContext.registerUnit(tokenStore);
 
-        final var temporaryMonolithicService = context.getBean(TemporaryMonolithicService.class);
+        final var temporaryMonolithicService = applicationContext.getBean(TemporaryMonolithicService.class);
         AllUnitsRegister.register(apiContext, temporaryMonolithicService);
 
         final var mpUserAuthenticator = new Authenticator(
@@ -54,6 +53,13 @@ public class App {
         apiContext.registerResourceInjector(
                 Authenticator.LoggedInUser.class,
                 paths -> mpUserAuthenticator
+        );
+
+        final StatefulRedisConnection<String, String> redisConnection = applicationContext.getBean(StatefulRedisConnection.class);
+        final var apiBasedSemaphore = new ApiBasedSemaphore(redisConnection);
+        apiContext.registerResourceInjector(
+                ApiBasedSemaphore.InjectedApiSemaphore.class,
+                paths -> apiBasedSemaphore
         );
 
         apiContext.registerResourceInjector(
@@ -70,7 +76,7 @@ public class App {
         AllUserApis.initializeAll(apiContext);
         AllCourseApis.initializeAll(apiContext);
 
-        final var app = context.getBean(Javalin.class);
-        app.start(context.getEnvironment().getProperty(SERVER_PORT, Integer.class));
+        final var app = applicationContext.getBean(Javalin.class);
+        app.start(applicationContext.getEnvironment().getProperty(SERVER_PORT, Integer.class));
     }
 }
