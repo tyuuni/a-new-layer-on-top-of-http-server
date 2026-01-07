@@ -26,7 +26,8 @@ import static com.example.apiserver.ConfigConstants.LOG_INFO_FILE_PATH;
 import static com.example.apiserver.ConfigConstants.LOG_INFO_FILE_ROLLING;
 import static com.example.apiserver.ConfigConstants.LOG_LEVEL;
 
-// spring @Order不管用，这么写让logger第一个初始化
+// spring @Order doesn't apply to its inner logger.
+// so we write in this way to replace its root logger with our custom logger.
 public class LoggerConfig {
     static void addAppenderToLogger(final ch.qos.logback.classic.Logger logger,
                                     final LoggerContext context,
