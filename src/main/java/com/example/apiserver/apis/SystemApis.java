@@ -46,9 +46,6 @@ public class SystemApis {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     @JsonSerialize(as = ImmutableParamSpec.class)
     static abstract class ParamSpec {
-        abstract boolean isNested();
-
-        abstract boolean isArray();
 
         abstract boolean isNullable();
 
@@ -65,19 +62,13 @@ public class SystemApis {
                     .type(field.getType().getSimpleName())
                     .isNullable(field.getAnnotation(Nullable.class) != null);
             if (BASIC_CLASSES.contains(field.getType())) {
-                final var spec = builder
-                        .isNested(false)
-                        .isArray(false)
-                        .build();
-                return spec;
+                return builder.build();
             }
-            if (field.getType() == List.class || field.getType() == ImmutableList.class) {
+            if (List.class.isAssignableFrom(field.getType())) {
                 final var innerClass = ((ParameterizedType) field.getGenericType()).getActualTypeArguments()[0];
                 try {
                     final var clazz = Class.forName(innerClass.getTypeName());
                     return builder
-                            .isNested(false)
-                            .isArray(true)
                             .model(ModelSpec.from(clazz))
                             .build();
                 } catch (final Exception e) {
@@ -85,8 +76,6 @@ public class SystemApis {
                 }
             }
             return builder
-                    .isNested(true)
-                    .isArray(false)
                     .model(ModelSpec.from(field.getType()))
                     .build();
         }
@@ -97,18 +86,13 @@ public class SystemApis {
                     .type(method.getReturnType().getSimpleName())
                     .isNullable(method.getAnnotation(Nullable.class) != null);
             if (BASIC_CLASSES.contains(method.getReturnType())) {
-                return builder
-                        .isNested(false)
-                        .isArray(false)
-                        .build();
+                return builder.build();
             }
             if (List.class.isAssignableFrom(method.getReturnType())) {
                 final var innerClass = ((ParameterizedType) method.getGenericReturnType()).getActualTypeArguments()[0];
                 try {
                     final var clazz = Class.forName(innerClass.getTypeName());
                     return builder
-                            .isNested(false)
-                            .isArray(true)
                             .model(ModelSpec.from(clazz))
                             .build();
                 } catch (final Exception e) {
@@ -116,8 +100,6 @@ public class SystemApis {
                 }
             }
             return builder
-                    .isNested(true)
-                    .isArray(false)
                     .model(ModelSpec.from(method.getReturnType()))
                     .build();
         }
