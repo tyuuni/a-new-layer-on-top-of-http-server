@@ -1,5 +1,6 @@
 package com.example.apiserver.injector;
 
+import com.example.apiserver.core.ExampleResponse;
 import com.example.apiserver.core.HttpParameter;
 import com.example.apiserver.core.InjectedResource;
 import com.example.apiserver.core.ResourceInjector;
@@ -31,7 +32,9 @@ public class SingleUserInjector implements ResourceInjector<SingleUserInjector.I
                     "invalid user id")
     );
 
-    private static final List<String> FAILURE_RESPONSES = ImmutableList.of(INVALID_USER_ID);
+    private static final List<ExampleResponse> FAILURE_RESPONSES = ImmutableList.of(
+            ExampleResponse.of(HttpCode.NOT_FOUND, INVALID_USER_ID)
+    );
 
     public SingleUserInjector(final SingleUserByIdGetter singleUserByIdGetter,
                               final String path) {
@@ -61,14 +64,8 @@ public class SingleUserInjector implements ResourceInjector<SingleUserInjector.I
     public List<HttpParameter> getParameters() {
         return ImmutableList.of(HttpParameter.pathVariable(path));
     }
-
     @Override
-    public HttpCode getFailureCode() {
-        return HttpCode.NOT_FOUND;
-    }
-
-    @Override
-    public List<String> getFailureResponses() {
+    public List<ExampleResponse> getFailureResponses() {
         return FAILURE_RESPONSES;
     }
 

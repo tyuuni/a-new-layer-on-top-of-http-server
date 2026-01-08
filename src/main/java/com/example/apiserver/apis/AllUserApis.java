@@ -9,6 +9,7 @@ import com.example.apiserver.core.exception.ConflictingRequest;
 import com.example.apiserver.core.exception.RequestValidationFailure;
 import com.example.apiserver.core.exception.UnauthorizedRequest;
 import com.example.apiserver.injector.ApiBasedSemaphore;
+import com.example.apiserver.injector.ApiCacheLayer;
 import com.example.apiserver.injector.Authenticator;
 import com.example.apiserver.injector.SingleUserInjector;
 import com.example.apiserver.core.reqres.ResponseMapperFactory;
@@ -102,9 +103,10 @@ public class AllUserApis {
     static void getSingleUserPrivate(final ApiBuilder apiBuilder) {
         apiBuilder.get("/user/{userId}", "get single user by id(requires authentication).")
                 .requiresResourceInjection(Authenticator.LoggedInUser.class)
+                .requiresResourceInjection(ApiCacheLayer.CacheStatus.class)
                 .requiresResourceInjection(SingleUserInjector.InjectedUser.class, "{userId}")
                 .requiresBusinessUnits(SingleUserByIdGetter.class)
-                .handle(RequestValidatorFactory.cleanUrlAndEmptyBodyValidator(), (loggedInUser, injectedUser, singleUserByIdGetter, aBoolean) -> {
+                .handle(RequestValidatorFactory.cleanUrlAndEmptyBodyValidator(), (loggedInUser, injectedCacheStatus, injectedUser, singleUserByIdGetter, aBoolean) -> {
                     return singleUserByIdGetter.getUserById(injectedUser.getTeacherId())
                             .map(userOptional -> {
                                 final JointEntityResponse teacher;
@@ -117,7 +119,7 @@ public class AllUserApis {
                                             teacherUser.getName(),
                                             teacherUser.isDeleted());
                                 }
-                                return ImmutableSingleUserResponsePrivate.builder()
+                                final SingleUserResponsePrivate response = ImmutableSingleUserResponsePrivate.builder()
                                         .id(injectedUser.getId())
                                         .nfcCardId(injectedUser.getNfcCardId())
                                         .name(injectedUser.getName())
@@ -125,6 +127,9 @@ public class AllUserApis {
                                         .isTeacher(injectedUser.isTeacher())
                                         .teacher(teacher)
                                         .build();
+                                injectedCacheStatus.shouldResetCache = true;
+                                injectedCacheStatus.responseToCache = JSONUtil.writeAsJson(response);
+                                return response;
                             });
                 },  ResponseMapperFactory.jsonResponseMapper200(SingleUserResponsePrivate.class));
     }
@@ -233,13 +238,16 @@ public class AllUserApis {
     static void updateSingleUser(final ApiBuilder apiBuilder) {
         apiBuilder.patch("/user/{userId}", "update single user.")
                 .requiresResourceInjection(Authenticator.LoggedInUser.class)
+                .requiresResourceInjection(ApiCacheLayer.CacheStatus.class)
                 .requiresResourceInjection(ApiBasedSemaphore.InjectedApiSemaphore.class)
                 .requiresResourceInjection(SingleUserInjector.InjectedUser.class, "{userId}")
                 .requiresBusinessUnits(SingleUserUpdater.class)
-                .handle(RequestValidatorFactory.buildCleanJsonValidator(SingleUserUpdateRequest.class), (loggedInUser, injectedApiSemaphore, injectedUser, singleUserUpdater, request) -> {
+                .handle(RequestValidatorFactory.buildCleanJsonValidator(SingleUserUpdateRequest.class), (loggedInUser, injectedCacheStatus, injectedApiSemaphore, injectedUser, singleUserUpdater, request) -> {
                     if (injectedApiSemaphore.getAcquiredValue() > 1) {
                         return Mono.error(new ConflictingRequest("concurrent request to update user", USER_UPDATE_FAILURE_CONCURRENT_REQUESTS));
                     }
+                    injectedCacheStatus.shouldResetCache = true;
+                    injectedCacheStatus.responseToCache = null;
                     return singleUserUpdater.updateUser(injectedUser.getId(), request.getNfcCardId(), request.getName(), loggedInUser.getId());
                 }, ResponseMapperFactory.noContentMapper204());
     }
@@ -261,10 +269,14 @@ public class AllUserApis {
     }
 
     static void getSingleUserPublic(final ApiBuilder apiBuilder) {
-        apiBuilder.get("public/user/{userId}", "get single user by id(publicly accessible).")
+        // In this example, cached response never becomes invalid.
+        // In practice, you might add cache at service level,
+        // or make this cache interact through some common key with apis updating this user.
+        apiBuilder.get("/public/user/{userId}", "get single user by id(publicly accessible).")
+                .requiresResourceInjection(ApiCacheLayer.CacheStatus.class)
                 .requiresResourceInjection(SingleUserInjector.InjectedUser.class, "{userId}")
                 .requiresBusinessUnits(SingleUserByIdGetter.class)
-                .handle(RequestValidatorFactory.cleanUrlAndEmptyBodyValidator(), (injectedUser, singleUserByIdGetter, aBoolean) -> {
+                .handle(RequestValidatorFactory.cleanUrlAndEmptyBodyValidator(), (injectedCacheStatus, injectedUser, singleUserByIdGetter, aBoolean) -> {
                     return singleUserByIdGetter.getUserById(injectedUser.getTeacherId())
                             .map(userOptional -> {
                                 final JointEntityResponse teacher;
@@ -277,13 +289,16 @@ public class AllUserApis {
                                             teacherUser.getName(),
                                             teacherUser.isDeleted());
                                 }
-                                return ImmutableSingleUserResponsePublic.builder()
+                                final SingleUserResponsePublic response = ImmutableSingleUserResponsePublic.builder()
                                         .id(injectedUser.getId())
                                         .name(injectedUser.getName())
                                         .isStudent(injectedUser.isStudent())
                                         .isTeacher(injectedUser.isTeacher())
                                         .teacher(teacher)
                                         .build();
+                                injectedCacheStatus.shouldResetCache = true;
+                                injectedCacheStatus.responseToCache = JSONUtil.writeAsJson(response);
+                                return response;
                             });
                 }, ResponseMapperFactory.jsonResponseMapper200(SingleUserResponsePublic.class))
                 .examplesFor406();

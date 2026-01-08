@@ -56,10 +56,17 @@ public class App {
         );
 
         final StatefulRedisConnection<String, String> redisConnection = applicationContext.getBean(StatefulRedisConnection.class);
+
         final var apiBasedSemaphore = new ApiBasedSemaphore(redisConnection);
         apiContext.registerResourceInjector(
                 ApiBasedSemaphore.InjectedApiSemaphore.class,
                 paths -> apiBasedSemaphore
+        );
+
+        final var apiCacheLayer = new ApiCacheLayer(redisConnection);
+        apiContext.registerResourceInjector(
+                ApiCacheLayer.CacheStatus.class,
+                paths -> apiCacheLayer
         );
 
         apiContext.registerResourceInjector(

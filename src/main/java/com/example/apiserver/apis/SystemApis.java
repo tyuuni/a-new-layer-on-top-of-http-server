@@ -213,8 +213,7 @@ public class SystemApis {
                     .description(apiDefinition.getDescription())
                     .responseStatus(apiDefinition.getResponseMapper().getStatusCode().getStatus())
                     .generalResponses(apiDefinition.getInjectors().stream()
-                            .flatMap(injector -> injector.getFailureResponses().stream()
-                                    .map(failureResponse -> ExampleResponse.of(injector.getFailureCode(), failureResponse)))
+                            .flatMap(injector -> injector.getFailureResponses().stream())
                             .collect(Collectors.toList()))
                     .customResponses(apiDefinition.getCustomResponseExamples());
             if (apiDefinition.getValidator().getContentType() != null) {

@@ -1,6 +1,7 @@
 package com.example.apiserver.injector;
 
 import com.example.apiserver.ErrorCodes;
+import com.example.apiserver.core.ExampleResponse;
 import com.example.apiserver.core.HttpParameter;
 import com.example.apiserver.core.InjectedResource;
 import com.example.apiserver.core.ResourceInjector;
@@ -45,7 +46,10 @@ public class Authenticator implements ResourceInjector<Authenticator.LoggedInUse
                     "token expired")
     );
 
-    private static final List<String> FAILURE_RESPONSES = ImmutableList.of(HEADER_MISSING, TOKEN_EXPIRED);
+    private static final List<ExampleResponse> FAILURE_RESPONSES = ImmutableList.of(
+            ExampleResponse.of(HttpCode.UNAUTHORIZED, HEADER_MISSING),
+            ExampleResponse.of(HttpCode.UNAUTHORIZED, TOKEN_EXPIRED)
+    );
 
     private static final String INJECTION_KEY = "eg-logged-in-user";
 
@@ -88,12 +92,7 @@ public class Authenticator implements ResourceInjector<Authenticator.LoggedInUse
     }
 
     @Override
-    public HttpCode getFailureCode() {
-        return HttpCode.UNAUTHORIZED;
-    }
-
-    @Override
-    public List<String> getFailureResponses() {
+    public List<ExampleResponse> getFailureResponses() {
         return FAILURE_RESPONSES;
     }
 

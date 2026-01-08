@@ -1,5 +1,6 @@
 package com.example.apiserver.injector;
 
+import com.example.apiserver.core.ExampleResponse;
 import com.example.apiserver.core.HttpParameter;
 import com.example.apiserver.core.InjectedResource;
 import com.example.apiserver.core.ResourceInjector;
@@ -31,7 +32,8 @@ public class SingleCourseInjector implements ResourceInjector<SingleCourseInject
                     "invalid course id")
     );
 
-    private static final List<String> FAILURE_RESPONSES = ImmutableList.of(INVALID_COURSE_ID);
+    private static final List<ExampleResponse> FAILURE_RESPONSES = ImmutableList.of(
+            ExampleResponse.of(HttpCode.NOT_FOUND, INVALID_COURSE_ID));
 
     public SingleCourseInjector(final SingleCourseByIdGetter singleCourseByIdGetter,
                                 final String path) {
@@ -64,12 +66,7 @@ public class SingleCourseInjector implements ResourceInjector<SingleCourseInject
     }
 
     @Override
-    public HttpCode getFailureCode() {
-        return HttpCode.NOT_FOUND;
-    }
-
-    @Override
-    public List<String> getFailureResponses() {
+    public List<ExampleResponse> getFailureResponses() {
         return FAILURE_RESPONSES;
     }
 

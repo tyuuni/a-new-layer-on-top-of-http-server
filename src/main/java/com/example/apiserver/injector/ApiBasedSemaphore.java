@@ -1,6 +1,7 @@
 package com.example.apiserver.injector;
 
 import com.example.apiserver.ErrorCodes;
+import com.example.apiserver.core.ExampleResponse;
 import com.example.apiserver.core.HttpParameter;
 import com.example.apiserver.core.InjectedResource;
 import com.example.apiserver.core.ResourceInjector;
@@ -58,12 +59,7 @@ public class ApiBasedSemaphore implements ResourceInjector<ApiBasedSemaphore.Inj
     }
 
     @Override
-    public HttpCode getFailureCode() {
-        return HttpCode.CONFLICT;
-    }
-
-    @Override
-    public List<String> getFailureResponses() {
+    public List<ExampleResponse> getFailureResponses() {
         return Collections.emptyList();
     }
 

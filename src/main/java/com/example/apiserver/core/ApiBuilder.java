@@ -341,6 +341,15 @@ public class ApiBuilder {
             injectors.add(injector);
         }
 
+        public <T extends InjectedResource> ApiBuilderRequiresInjectorN4<I1, I2, I3, T> requiresResourceInjection(final Class<T> resourceClass,
+                                                                                                                  final String... clues) {
+            final var injectorBuilder = apiContext.getResourceInjectorBuilder(resourceClass);
+            if (injectorBuilder == null) {
+                throw new RuntimeException("resource injector builder " + resourceClass.getName());
+            }
+            return new ApiBuilderRequiresInjectorN4<>(injectorBuilder.buildInjector(clues));
+        }
+
         public ApiBuilderRequiresInjectorN3UnitsN0<I1, I2, I3> requiresBusinessUnits() {
             return new ApiBuilderRequiresInjectorN3UnitsN0<>();
         }
@@ -408,6 +417,84 @@ public class ApiBuilder {
 
         public <R, T> ApiDefinition<R, T> handle(final RequestValidator<R> validator,
                                                  final Function7<I1, I2, I3, B1, B2, B3, R, Mono<T>> handler,
+                                                 final ResponseMapper<T> responseMapper) {
+            return apiContext.apiBackbone.addApi(type, path, description, injectors, units, validator, GeneralizedHandler.generalize(handler), responseMapper);
+        }
+    }
+
+    public static class ApiBuilderRequiresInjectorN4<I1 extends InjectedResource, I2 extends InjectedResource, I3 extends InjectedResource, I4 extends InjectedResource> {
+
+        ApiBuilderRequiresInjectorN4(final ResourceInjector<I4> injector) {
+            injectors.add(injector);
+        }
+
+        public ApiBuilderRequiresInjectorN4UnitsN0<I1, I2, I3, I4> requiresBusinessUnits() {
+            return new ApiBuilderRequiresInjectorN4UnitsN0<>();
+        }
+
+        public <B extends BusinessUnit> ApiBuilderRequiresInjectorN4UnitsN1<I1, I2, I3, I4, B> requiresBusinessUnits(final Class<B> unitClass) {
+            return new ApiBuilderRequiresInjectorN4UnitsN1<>(unitClass);
+        }
+
+        public <B1 extends BusinessUnit, B2 extends BusinessUnit>
+        ApiBuilderRequiresInjectorN4UnitsN2<I1, I2, I3, I4, B1, B2> requiresBusinessUnits(final Class<B1> unit1Class,
+                                                                                          final Class<B2> unit2Class) {
+            return new ApiBuilderRequiresInjectorN4UnitsN2<>(unit1Class, unit2Class);
+        }
+
+        public <B1 extends BusinessUnit, B2 extends BusinessUnit, B3 extends BusinessUnit>
+        ApiBuilderRequiresInjectorN4UnitsN3<I1, I2, I3, I4, B1, B2, B3> requiresBusinessUnits(final Class<B1> unit1Class,
+                                                                                              final Class<B2> unit2Class,
+                                                                                              final Class<B3> unit3Class) {
+            return new ApiBuilderRequiresInjectorN4UnitsN3<>(unit1Class, unit2Class, unit3Class);
+        }
+    }
+
+    public static class ApiBuilderRequiresInjectorN4UnitsN0<I1 extends InjectedResource, I2 extends InjectedResource, I3 extends InjectedResource, I4 extends InjectedResource> {
+        public <R, T> ApiDefinition<R, T> handle(final RequestValidator<R> validator,
+                                                 final Function5<I1, I2, I3, I4, R, Mono<T>> handler,
+                                                 final ResponseMapper<T> responseMapper) {
+            return apiContext.apiBackbone.addApi(type, path, description, injectors, units, validator, GeneralizedHandler.generalize(handler), responseMapper);
+        }
+    }
+
+    public static class ApiBuilderRequiresInjectorN4UnitsN1<I1 extends InjectedResource, I2 extends InjectedResource, I3 extends InjectedResource, I4 extends InjectedResource, B extends BusinessUnit> {
+        ApiBuilderRequiresInjectorN4UnitsN1(final Class<B> unitClass) {
+            units.add(apiContext.getBusinessUnit(unitClass));
+        }
+
+        public <R, T> ApiDefinition<R, T> handle(final RequestValidator<R> validator,
+                                                 final Function6<I1, I2, I3, I4, B, R, Mono<T>> handler,
+                                                 final ResponseMapper<T> responseMapper) {
+            return apiContext.apiBackbone.addApi(type, path, description, injectors, units, validator, GeneralizedHandler.generalize(handler), responseMapper);
+        }
+    }
+
+    public static class ApiBuilderRequiresInjectorN4UnitsN2<I1 extends InjectedResource, I2 extends InjectedResource, I3 extends InjectedResource, I4 extends InjectedResource, B1 extends BusinessUnit, B2 extends BusinessUnit> {
+        ApiBuilderRequiresInjectorN4UnitsN2(final Class<B1> unit1Class,
+                                            final Class<B2> unit2Class) {
+            units.add(apiContext.getBusinessUnit(unit1Class));
+            units.add(apiContext.getBusinessUnit(unit2Class));
+        }
+
+        public <R, T> ApiDefinition<R, T> handle(final RequestValidator<R> validator,
+                                                 final Function7<I1, I2, I3, I4, B1, B2, R, Mono<T>> handler,
+                                                 final ResponseMapper<T> responseMapper) {
+            return apiContext.apiBackbone.addApi(type, path, description, injectors, units, validator, GeneralizedHandler.generalize(handler), responseMapper);
+        }
+    }
+
+    public static class ApiBuilderRequiresInjectorN4UnitsN3<I1 extends InjectedResource, I2 extends InjectedResource, I3 extends InjectedResource, I4 extends InjectedResource, B1 extends BusinessUnit, B2 extends BusinessUnit, B3 extends BusinessUnit> {
+        ApiBuilderRequiresInjectorN4UnitsN3(final Class<B1> unit1Class,
+                                            final Class<B2> unit2Class,
+                                            final Class<B3> unit3Class) {
+            units.add(apiContext.getBusinessUnit(unit1Class));
+            units.add(apiContext.getBusinessUnit(unit2Class));
+            units.add(apiContext.getBusinessUnit(unit3Class));
+        }
+
+        public <R, T> ApiDefinition<R, T> handle(final RequestValidator<R> validator,
+                                                 final Function8<I1, I2, I3, I4, B1, B2, B3, R, Mono<T>> handler,
                                                  final ResponseMapper<T> responseMapper) {
             return apiContext.apiBackbone.addApi(type, path, description, injectors, units, validator, GeneralizedHandler.generalize(handler), responseMapper);
         }

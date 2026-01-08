@@ -1,5 +1,6 @@
 package com.example.apiserver.injector;
 
+import com.example.apiserver.core.ExampleResponse;
 import com.example.apiserver.core.HttpParameter;
 import com.example.apiserver.core.InjectedResource;
 import com.example.apiserver.core.ResourceInjector;
@@ -45,12 +46,7 @@ public class RequestMonitor implements ResourceInjector<RequestMonitor.MonitorSt
     }
 
     @Override
-    public HttpCode getFailureCode() {
-        return HttpCode.INTERNAL_SERVER_ERROR;
-    }
-
-    @Override
-    public List<String> getFailureResponses() {
+    public List<ExampleResponse> getFailureResponses() {
         return Collections.emptyList();
     }
 
@@ -60,6 +56,6 @@ public class RequestMonitor implements ResourceInjector<RequestMonitor.MonitorSt
     }
 
     public static class MonitorStatus implements InjectedResource {
-        MonitorStatus() {}
+        private MonitorStatus() {}
     }
 }
