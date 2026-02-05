@@ -34,6 +34,7 @@ public class AllUserApis {
     @JsonDeserialize(as = ImmutableLoginRequest.class)
     static abstract class LoginRequest {
         abstract String getName();
+
         abstract String getNfcCardId();
     }
 
@@ -42,7 +43,9 @@ public class AllUserApis {
     @JsonDeserialize(as = ImmutableLoginResponse.class)
     static abstract class LoginResponse {
         abstract boolean getIsSuccessful();
+
         abstract String getId();
+
         abstract String getToken();
     }
 
@@ -55,30 +58,33 @@ public class AllUserApis {
         apiBuilder.post("/login", "user login. this api requires only nfc card id to match user name")
                 .requiresResourceInjection()
                 .requiresBusinessUnits(SingleUserByNfcCardIdGetter.class, TokenStore.class)
-                .handle(RequestValidatorFactory.buildCleanJsonValidator(LoginRequest.class), (singleUserByNfcCardIdGetter, tokenStore, loginRequest) -> {
-                    return singleUserByNfcCardIdGetter.getUserByNfcCardId(loginRequest.getNfcCardId())
-                            .handle((userOptional, sink) -> {
-                                if (userOptional.isEmpty()) {
-                                    sink.error(new RequestValidationFailure(
-                                            "incorrect nfc card id",
-                                            LOGIN_FAILURE_INCORRECT_NFC_CARD_ID));
-                                    return;
-                                }
-                                final User user = userOptional.get();
-                                if (!user.getName().equals(loginRequest.getName())) {
-                                    sink.error(new RequestValidationFailure(
-                                            "incorrect nfc card id",
-                                            LOGIN_FAILURE_INCORRECT_NFC_CARD_ID));
-                                    return;
-                                }
-                                final String token = tokenStore.putToken(user.getId());
-                                sink.next(ImmutableLoginResponse.builder()
-                                        .isSuccessful(true)
-                                        .id(user.getId())
-                                        .token(token)
-                                        .build());
-                            });
-                }, ResponseMapperFactory.jsonResponseMapper200(LoginResponse.class))
+                .handle(
+                        RequestValidatorFactory.buildCleanJsonValidator(LoginRequest.class),
+                        (singleUserByNfcCardIdGetter, tokenStore, loginRequest) -> {
+                            return singleUserByNfcCardIdGetter.getUserByNfcCardId(loginRequest.getNfcCardId())
+                                    .handle((userOptional, sink) -> {
+                                        if (userOptional.isEmpty()) {
+                                            sink.error(new RequestValidationFailure(
+                                                    "incorrect nfc card id",
+                                                    LOGIN_FAILURE_INCORRECT_NFC_CARD_ID));
+                                            return;
+                                        }
+                                        final User user = userOptional.get();
+                                        if (!user.getName().equals(loginRequest.getName())) {
+                                            sink.error(new RequestValidationFailure(
+                                                    "incorrect nfc card id",
+                                                    LOGIN_FAILURE_INCORRECT_NFC_CARD_ID));
+                                            return;
+                                        }
+                                        final String token = tokenStore.putToken(user.getId());
+                                        sink.next(ImmutableLoginResponse.builder()
+                                                .isSuccessful(true)
+                                                .id(user.getId())
+                                                .token(token)
+                                                .build());
+                                    });
+                        },
+                        ResponseMapperFactory.jsonResponseMapper200(LoginResponse.class))
                 .examplesFor406(LOGIN_FAILURE_INCORRECT_NFC_CARD_ID);
     }
 
@@ -106,32 +112,35 @@ public class AllUserApis {
                 .requiresResourceInjection(ApiCacheLayer.CacheStatus.class)
                 .requiresResourceInjection(SingleUserInjector.InjectedUser.class, "{userId}")
                 .requiresBusinessUnits(SingleUserByIdGetter.class)
-                .handle(RequestValidatorFactory.cleanUrlAndEmptyBodyValidator(), (loggedInUser, injectedCacheStatus, injectedUser, singleUserByIdGetter, aBoolean) -> {
-                    return singleUserByIdGetter.getUserById(injectedUser.getTeacherId())
-                            .map(userOptional -> {
-                                final JointEntityResponse teacher;
-                                if (userOptional.isEmpty()) {
-                                    teacher = null;
-                                } else {
-                                    final User teacherUser = userOptional.get();
-                                    teacher = JointEntityResponse.of(
-                                            teacherUser.getId(),
-                                            teacherUser.getName(),
-                                            teacherUser.isDeleted());
-                                }
-                                final SingleUserResponsePrivate response = ImmutableSingleUserResponsePrivate.builder()
-                                        .id(injectedUser.getId())
-                                        .nfcCardId(injectedUser.getNfcCardId())
-                                        .name(injectedUser.getName())
-                                        .isStudent(injectedUser.isStudent())
-                                        .isTeacher(injectedUser.isTeacher())
-                                        .teacher(teacher)
-                                        .build();
-                                injectedCacheStatus.shouldResetCache = true;
-                                injectedCacheStatus.responseToCache = JSONUtil.writeAsJson(response);
-                                return response;
-                            });
-                },  ResponseMapperFactory.jsonResponseMapper200(SingleUserResponsePrivate.class));
+                .handle(
+                        RequestValidatorFactory.cleanUrlAndEmptyBodyValidator(),
+                        (loggedInUser, injectedCacheStatus, injectedUser, singleUserByIdGetter, aBoolean) -> {
+                            return singleUserByIdGetter.getUserById(injectedUser.getTeacherId())
+                                    .map(userOptional -> {
+                                        final JointEntityResponse teacher;
+                                        if (userOptional.isEmpty()) {
+                                            teacher = null;
+                                        } else {
+                                            final User teacherUser = userOptional.get();
+                                            teacher = JointEntityResponse.of(
+                                                    teacherUser.getId(),
+                                                    teacherUser.getName(),
+                                                    teacherUser.isDeleted());
+                                        }
+                                        final SingleUserResponsePrivate response = ImmutableSingleUserResponsePrivate.builder()
+                                                .id(injectedUser.getId())
+                                                .nfcCardId(injectedUser.getNfcCardId())
+                                                .name(injectedUser.getName())
+                                                .isStudent(injectedUser.isStudent())
+                                                .isTeacher(injectedUser.isTeacher())
+                                                .teacher(teacher)
+                                                .build();
+                                        injectedCacheStatus.shouldResetCache = true;
+                                        injectedCacheStatus.responseToCache = JSONUtil.writeAsJson(response);
+                                        return response;
+                                    });
+                        },
+                        ResponseMapperFactory.jsonResponseMapper200(SingleUserResponsePrivate.class));
     }
 
     @Value.Immutable
@@ -150,33 +159,36 @@ public class AllUserApis {
                 .requiresResourceInjection(Authenticator.LoggedInUser.class)
                 .requiresResourceInjection(SingleUserInjector.InjectedUser.class, "{teacherId}")
                 .requiresBusinessUnits(UsersByTeacherIdGetter.class)
-                .handle(RequestValidatorFactory.cleanUrlAndEmptyBodyValidator(), (loggedInUser, injectedUser, usersByTeacherIdGetter, aBoolean) -> {
-                    if (!loggedInUser.isTeacher()) {
-                        return Mono.error(new IllegalArgumentException("only teacher can get students of teacher"));
-                    }
-                    return usersByTeacherIdGetter.getUsersByTeacherId(injectedUser.getTeacherId())
-                            .map(students -> {
-                                return ImmutableStudentsOfTeacherResponse.builder()
-                                        .teacher(JointEntityResponse.of(
-                                                injectedUser.getId(),
-                                                injectedUser.getName(),
-                                                false))
-                                        .count(students.size())
-                                        .students(students.stream()
-                                                .map(student -> {
-                                                    return ImmutableSingleUserResponsePrivate.builder()
-                                                            .id(student.getId())
-                                                            .nfcCardId(student.getNfcCardId())
-                                                            .name(student.getName())
-                                                            .isStudent(true)
-                                                            .isTeacher(false)
-                                                            .teacher(null)
-                                                            .build();
-                                                })
-                                                .collect(Collectors.toList()))
-                                        .build();
-                            });
-                }, ResponseMapperFactory.jsonResponseMapper200(StudentsOfTeacherResponse.class));
+                .handle(
+                        RequestValidatorFactory.cleanUrlAndEmptyBodyValidator(),
+                        (loggedInUser, injectedUser, usersByTeacherIdGetter, aBoolean) -> {
+                            if (!loggedInUser.isTeacher()) {
+                                return Mono.error(new IllegalArgumentException("only teacher can get students of teacher"));
+                            }
+                            return usersByTeacherIdGetter.getUsersByTeacherId(injectedUser.getTeacherId())
+                                    .map(students -> {
+                                        return ImmutableStudentsOfTeacherResponse.builder()
+                                                .teacher(JointEntityResponse.of(
+                                                        injectedUser.getId(),
+                                                        injectedUser.getName(),
+                                                        false))
+                                                .count(students.size())
+                                                .students(students.stream()
+                                                        .map(student -> {
+                                                            return ImmutableSingleUserResponsePrivate.builder()
+                                                                    .id(student.getId())
+                                                                    .nfcCardId(student.getNfcCardId())
+                                                                    .name(student.getName())
+                                                                    .isStudent(true)
+                                                                    .isTeacher(false)
+                                                                    .teacher(null)
+                                                                    .build();
+                                                        })
+                                                        .collect(Collectors.toList()))
+                                                .build();
+                                    });
+                        },
+                        ResponseMapperFactory.jsonResponseMapper200(StudentsOfTeacherResponse.class));
     }
 
     @Value.Immutable
@@ -202,18 +214,21 @@ public class AllUserApis {
         apiBuilder.put("/students", "create a student. this api should be called by a teacher.")
                 .requiresResourceInjection(Authenticator.LoggedInUser.class)
                 .requiresBusinessUnits(SingleUserCreator.class, SingleUserByNfcCardIdGetter.class)
-                .handle(RequestValidatorFactory.buildCleanJsonValidator(SingleUserCreationRequest.class), (loggedInUser, singleUserCreator, singleUserByNfcCardIdGetter, request) -> {
-                    if (!loggedInUser.isTeacher()) {
-                        return Mono.error(new UnauthorizedRequest(String.format("student %s tries to create a student", loggedInUser.getId()), USER_CREATION_FAILED_UNAUTHORIZED));
-                    }
-                    return singleUserByNfcCardIdGetter.getUserByNfcCardId(request.getNfcCardId())
-                            .handle((userOptional, sink) -> {
-                                if (userOptional.isPresent()) {
-                                    sink.error(new RequestValidationFailure(String.format("user %s creating user with existing nfc card id %s", loggedInUser.getId(), request.getNfcCardId()), USER_CREATION_FAILED_CONFLICTING_NFC_ID));
-                                }
-                            }).then(singleUserCreator.createUser(request.getNfcCardId(), request.getName(), true, false, loggedInUser.getId(), loggedInUser.getId())
-                                    .map(User::getId));
-                }, ResponseMapperFactory.singleEntityIdMapper201())
+                .handle(
+                        RequestValidatorFactory.buildCleanJsonValidator(SingleUserCreationRequest.class),
+                        (loggedInUser, singleUserCreator, singleUserByNfcCardIdGetter, request) -> {
+                            if (!loggedInUser.isTeacher()) {
+                                return Mono.error(new UnauthorizedRequest(String.format("student %s tries to create a student", loggedInUser.getId()), USER_CREATION_FAILED_UNAUTHORIZED));
+                            }
+                            return singleUserByNfcCardIdGetter.getUserByNfcCardId(request.getNfcCardId())
+                                    .handle((userOptional, sink) -> {
+                                        if (userOptional.isPresent()) {
+                                            sink.error(new RequestValidationFailure(String.format("user %s creating user with existing nfc card id %s", loggedInUser.getId(), request.getNfcCardId()), USER_CREATION_FAILED_CONFLICTING_NFC_ID));
+                                        }
+                                    }).then(singleUserCreator.createUser(request.getNfcCardId(), request.getName(), true, false, loggedInUser.getId(), loggedInUser.getId())
+                                            .map(User::getId));
+                        },
+                        ResponseMapperFactory.singleEntityIdMapper201())
                 .examplesFor403(USER_CREATION_FAILED_UNAUTHORIZED)
                 .examplesFor406(USER_CREATION_FAILED_CONFLICTING_NFC_ID);
     }
@@ -242,14 +257,17 @@ public class AllUserApis {
                 .requiresResourceInjection(ApiBasedSemaphore.InjectedApiSemaphore.class)
                 .requiresResourceInjection(SingleUserInjector.InjectedUser.class, "{userId}")
                 .requiresBusinessUnits(SingleUserUpdater.class)
-                .handle(RequestValidatorFactory.buildCleanJsonValidator(SingleUserUpdateRequest.class), (loggedInUser, injectedCacheStatus, injectedApiSemaphore, injectedUser, singleUserUpdater, request) -> {
-                    if (injectedApiSemaphore.getAcquiredValue() > 1) {
-                        return Mono.error(new ConflictingRequest("concurrent request to update user", USER_UPDATE_FAILURE_CONCURRENT_REQUESTS));
-                    }
-                    injectedCacheStatus.shouldResetCache = true;
-                    injectedCacheStatus.responseToCache = null;
-                    return singleUserUpdater.updateUser(injectedUser.getId(), request.getNfcCardId(), request.getName(), loggedInUser.getId());
-                }, ResponseMapperFactory.noContentMapper204());
+                .handle(
+                        RequestValidatorFactory.buildCleanJsonValidator(SingleUserUpdateRequest.class),
+                        (loggedInUser, injectedCacheStatus, injectedApiSemaphore, injectedUser, singleUserUpdater, request) -> {
+                            if (injectedApiSemaphore.getAcquiredValue() > 1) {
+                                return Mono.error(new ConflictingRequest("concurrent request to update user", USER_UPDATE_FAILURE_CONCURRENT_REQUESTS));
+                            }
+                            injectedCacheStatus.shouldResetCache = true;
+                            injectedCacheStatus.responseToCache = null;
+                            return singleUserUpdater.updateUser(injectedUser.getId(), request.getNfcCardId(), request.getName(), loggedInUser.getId());
+                        },
+                        ResponseMapperFactory.noContentMapper204());
     }
 
     @Value.Immutable
@@ -276,32 +294,34 @@ public class AllUserApis {
                 .requiresResourceInjection(ApiCacheLayer.CacheStatus.class)
                 .requiresResourceInjection(SingleUserInjector.InjectedUser.class, "{userId}")
                 .requiresBusinessUnits(SingleUserByIdGetter.class)
-                .handle(RequestValidatorFactory.cleanUrlAndEmptyBodyValidator(), (injectedCacheStatus, injectedUser, singleUserByIdGetter, aBoolean) -> {
-                    return singleUserByIdGetter.getUserById(injectedUser.getTeacherId())
-                            .map(userOptional -> {
-                                final JointEntityResponse teacher;
-                                if (userOptional.isEmpty()) {
-                                    teacher = null;
-                                } else {
-                                    final User teacherUser = userOptional.get();
-                                    teacher = JointEntityResponse.of(
-                                            teacherUser.getId(),
-                                            teacherUser.getName(),
-                                            teacherUser.isDeleted());
-                                }
-                                final SingleUserResponsePublic response = ImmutableSingleUserResponsePublic.builder()
-                                        .id(injectedUser.getId())
-                                        .name(injectedUser.getName())
-                                        .isStudent(injectedUser.isStudent())
-                                        .isTeacher(injectedUser.isTeacher())
-                                        .teacher(teacher)
-                                        .build();
-                                injectedCacheStatus.shouldResetCache = true;
-                                injectedCacheStatus.responseToCache = JSONUtil.writeAsJson(response);
-                                return response;
-                            });
-                }, ResponseMapperFactory.jsonResponseMapper200(SingleUserResponsePublic.class))
-                .examplesFor406();
+                .handle(
+                        RequestValidatorFactory.cleanUrlAndEmptyBodyValidator(),
+                        (injectedCacheStatus, injectedUser, singleUserByIdGetter, aBoolean) -> {
+                            return singleUserByIdGetter.getUserById(injectedUser.getTeacherId())
+                                    .map(userOptional -> {
+                                        final JointEntityResponse teacher;
+                                        if (userOptional.isEmpty()) {
+                                            teacher = null;
+                                        } else {
+                                            final User teacherUser = userOptional.get();
+                                            teacher = JointEntityResponse.of(
+                                                    teacherUser.getId(),
+                                                    teacherUser.getName(),
+                                                    teacherUser.isDeleted());
+                                        }
+                                        final SingleUserResponsePublic response = ImmutableSingleUserResponsePublic.builder()
+                                                .id(injectedUser.getId())
+                                                .name(injectedUser.getName())
+                                                .isStudent(injectedUser.isStudent())
+                                                .isTeacher(injectedUser.isTeacher())
+                                                .teacher(teacher)
+                                                .build();
+                                        injectedCacheStatus.shouldResetCache = true;
+                                        injectedCacheStatus.responseToCache = JSONUtil.writeAsJson(response);
+                                        return response;
+                                    });
+                        },
+                        ResponseMapperFactory.jsonResponseMapper200(SingleUserResponsePublic.class));
     }
 
     public static void initializeAll(final ApiContext apiContext) {

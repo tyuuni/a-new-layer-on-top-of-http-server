@@ -31,17 +31,20 @@ public class AllCourseApis {
         apiBuilder.get("/course/{courseId}", "get single course")
                 .requiresResourceInjection(SingleCourseInjector.InjectedCourse.class, "{courseId}")
                 .requiresBusinessUnits(SingleUserByIdGetter.class)
-                .handle(RequestValidatorFactory.cleanUrlAndEmptyBodyValidator(), (singleCourse, singleUserByIdGetter, isValid) -> {
-                    return singleUserByIdGetter.getUserById(singleCourse.getTeacherId())
-                            .map(userOptional -> {
-                               final var teacher = userOptional.get();
-                               return ImmutableSingleCourseResponsePublic.builder()
-                                       .id(singleCourse.getId())
-                                       .name(singleCourse.getName())
-                                       .teacher(JointEntityResponse.of(teacher.getId(), teacher.getName(), false))
-                                       .build();
-                            });
-                }, ResponseMapperFactory.jsonResponseMapper200(SingleCourseResponsePublic.class));
+                .handle(
+                        RequestValidatorFactory.cleanUrlAndEmptyBodyValidator(),
+                        (singleCourse, singleUserByIdGetter, isValid) -> {
+                            return singleUserByIdGetter.getUserById(singleCourse.getTeacherId())
+                                    .map(userOptional -> {
+                                        final var teacher = userOptional.get();
+                                        return ImmutableSingleCourseResponsePublic.builder()
+                                                .id(singleCourse.getId())
+                                                .name(singleCourse.getName())
+                                                .teacher(JointEntityResponse.of(teacher.getId(), teacher.getName(), false))
+                                                .build();
+                                    });
+                        },
+                        ResponseMapperFactory.jsonResponseMapper200(SingleCourseResponsePublic.class));
     }
 
     public static void initializeAll(final ApiContext apiContext) {
